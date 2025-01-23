@@ -1,13 +1,18 @@
+export type AttrType  = 'score' | 'dodge' | 'attack' | 'health' | 'defense' | 'critical';
+
 const shop = {
-    drawPrize (lv) {
-        const types = [
+    drawPrize (lv: number) {
+        const types: {
+            type: keyof typeof genre;
+            data: string[];
+        }[] = [
             { type: 'weapon', data: this.equipWeapons() },
             { type: 'armor', data: this.equipArmors() },
             { type: 'accessory', data: this.equipAccessories() },
             { type: 'sutra', data: this.equipSutras() }
         ];
         const genre = { sutra: '法器', armor: '护甲', weapon: '兵器', accessory: '灵宝' };
-        const getAttribute = (type, lv, attribute) => {
+        const getAttribute = (type: keyof typeof genre, lv: number, attribute: AttrType) => {
             // 根据装备品质调整装备属性值
             const multiplier = 15;
             const dodge = this.getRandomFloatInRange(0.02, 0.25);
@@ -64,12 +69,12 @@ const shop = {
     equipSutras () {
         return ['粉樱梦幻笛', '甜心粉蝶壶', '蜜桃恋语镜', '粉晶流光珠', '柔粉绮梦石', '樱花纷飞扇', '甜梦绮罗盘', '蜜桃幻影灯', '粉蝶织梦琴', '粉樱守护符'];
     },
-    getRandomInt (min, max) {
+    getRandomInt (min: number, max: number) {
         min = Math.ceil(min);
         max = Math.floor(max);
         return Math.floor(Math.random() * (max - min + 1)) + min;
     },
-    getRandomFloatInRange (min, max) {
+    getRandomFloatInRange (min: number, max: number) {
         return Math.random() * (max - min) + min;
     },
     // 计算装备评分

@@ -1,5 +1,5 @@
 const equips = {
-    drawPrize (lv, type, names_a, names_b, names_c, names_d, names_e, names_f, isNewbie) {
+    drawPrize (lv: number, type: string, names_a: string[], names_b: string[], names_c: string[], names_d: string[], names_e: string[], names_f: string[], isNewbie: boolean) {
         // 如果玩家等级为0 生成的装备等级最低为1, 如果玩家等级低于40级的话就随机生成当前等级和低于当前等级的装备
         lv = lv == 0 ? 1 : lv;
         // 如果已领取新手礼包
@@ -16,17 +16,17 @@ const equips = {
         const totalProbability = Object.values(weaponTypes).reduce((acc, { probability }) => acc + probability, 0);
         const random = Math.floor(Math.random() * totalProbability);
         let cumulativeProbability = 0;
-        for (const [quality, { names, probability }] of Object.entries(weaponTypes)) {
+        const qualityMultiplier = { info: 1.2, success: 2, primary: 3, purple: 5, warning: 7, danger: 10 };
+        for (const [quality, { names, probability }] of Object.entries(weaponTypes) as [keyof typeof qualityMultiplier, { names: string[], probability: number }][]) {
             cumulativeProbability += probability;
             if (random < cumulativeProbability) {
                 // 根据装备品质调整装备属性值
-                const qualityMultiplier = { info: 1.2, success: 2, primary: 3, purple: 5, warning: 7, danger: 10 };
                 const multiplier = qualityMultiplier[quality];
-                const dodge = ['accessory', 'sutra'].includes(type) ? this.equip_Criticalhitrate(lv) : 0;
+                const dodge = ['accessory', 'sutra'].includes(type) ? this.equip_Criticalhitrate() : 0;
                 const attack = ['weapon', 'accessory', 'sutra'].includes(type) ? Math.floor(this.equip_Attack(lv) * multiplier) : 0;
                 const health = ['armor', 'accessory', 'sutra'].includes(type) ? Math.floor(this.equip_Health(lv) * multiplier) : 0;
                 const defense = ['armor', 'accessory', 'sutra'].includes(type) ? Math.floor(this.equip_Attack(lv) * multiplier) : 0;
-                const critical = ['weapon', 'accessory', 'sutra'].includes(type) ? this.equip_Criticalhitrate(lv) : 0;
+                const critical = ['weapon', 'accessory', 'sutra'].includes(type) ? this.equip_Criticalhitrate() : 0;
                 const baseEquip = {
                     id: Date.now(), // 装备ID
                     name: names[Math.floor(Math.random() * names.length)], //装备名字
@@ -54,7 +54,7 @@ const equips = {
             }
         }
     },
-    equip_Weapons (lv, isNewbie = false) {
+    equip_Weapons (lv: any, isNewbie = false) {
         const names_a = [
             '白玉净尘剑', '雪魄寒冰枪', '白龙吟风弓', '月华流光扇', '白玉玄灵笛',
             '霜雪无痕鞭', '云隐白凰刃', '净世白莲杖', '冰魄寒光轮', '白玉玲珑塔'
@@ -81,7 +81,7 @@ const equips = {
         ];
         return this.drawPrize(lv, 'weapon', names_a, names_b, names_c, names_d, names_e, names_f, isNewbie);
     },
-    equip_Armors (lv, isNewbie = false) {
+    equip_Armors (lv: any, isNewbie = false) {
         const names_a = [
             '瑶池仙绡羽衣', '广寒玉兔霜甲', '昆仑玉璧战袍', '白龙吐珠云裳', '九天玄女素绫',
             '瑶光星辰织锦', '冰魄银丝战衣', '凌霄琼华宝衣', '雪域神女雪绒', '云隐龙鳞轻铠'
@@ -108,7 +108,7 @@ const equips = {
         ];
         return this.drawPrize(lv, 'armor', names_a, names_b, names_c, names_d, names_e, names_f, isNewbie);
     },
-    equip_Accessorys (lv, isNewbie = false) {
+    equip_Accessorys (lv: any, isNewbie = false) {
         const names_a = [
             '瑶池白玉簪', '月华流光坠', '寒霜凝露链', '九天玄女玉佩', '云锦织梦镯',
             '龙涎润雪环', '白鹤衔珠珮', '仙山雪莲花链', '瑶台仙露耳环', '银河织梦项链'
@@ -135,7 +135,7 @@ const equips = {
         ];
         return this.drawPrize(lv, 'accessory', names_a, names_b, names_c, names_d, names_e, names_f, isNewbie);
     },
-    equip_Sutras (lv, isNewbie = false) {
+    equip_Sutras (lv: any, isNewbie = false) {
         const names_a = [
             '白玉净瓶', '寒霜琉璃镜', '瑶池雪莲珠', '九天玄冰尺', '月华宝莲灯',
             '白云隐龙笛', '玉清昆仑扇', '净世白莲座', '银河落雪琴', '碧落瑶光盘'
@@ -162,10 +162,10 @@ const equips = {
         ];
         return this.drawPrize(lv, 'sutra', names_a, names_b, names_c, names_d, names_e, names_f, isNewbie);
     },
-    equip_Attack (lv) {
+    equip_Attack (lv: number) {
         return this.getRandomInt(10, 50) * lv;
     },
-    equip_Health (lv) {
+    equip_Health (lv: number) {
         return this.getRandomInt(100, 500) * lv;
     },
     equip_Criticalhitrate () {
@@ -180,12 +180,12 @@ const equips = {
     //         return this.getRandomInt(300, 500) * lv;
     //     }
     // },
-    getRandomInt (min, max) {
+    getRandomInt (min: number, max: number) {
         min = Math.ceil(min);
         max = Math.floor(max);
         return Math.floor(Math.random() * (max - min + 1)) + min;
     },
-    getRandomFloatInRange (min, max) {
+    getRandomFloatInRange (min: number, max: number) {
         return Math.random() * (max - min) + min;
     },
     // 计算装备评分

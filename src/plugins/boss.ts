@@ -1,5 +1,5 @@
 const boss = {
-    drawPrize (lv) {
+    drawPrize (lv: number) {
         const bossInfo = this.boss_Names();
         // 血量
         const health = this.getRandomInt(50000, 100000) * lv;
@@ -27,7 +27,7 @@ const boss = {
         };
     },
     // boss掉落
-    boss_Equip (lv) {
+    boss_Equip (lv: number) {
         const weapon = [
             '赤焰凤凰剑', '血玉红莲枪', '烈焰焚天弓', '赤霄神火戟', '火舞流云扇',
             '朱雀炎翼鞭', '赤龙焚世刃', '炎狱魔瞳镰', '炽血星辰杖', '红莲业火轮'
@@ -126,12 +126,12 @@ const boss = {
         ];
         return boss[Math.floor(Math.random() * boss.length)];
     },
-    getRandomInt (min, max) {
+    getRandomInt (min: number, max: number) {
         min = Math.ceil(min);
         max = Math.floor(max);
         return Math.floor(Math.random() * (max - min + 1)) + min;
     },
-    getRandomFloatInRange (min, max) {
+    getRandomFloatInRange (min: number, max: number) {
         return Math.random() * (max - min) + min;
     },
     // 计算装备评分

@@ -125,7 +125,6 @@
     import npc from '@/plugins/npc';
     // 怪物
     import monster from '@/plugins/monster';
-
     export default {
         data () {
             return {

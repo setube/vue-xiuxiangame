@@ -1,5 +1,5 @@
 const monsters = {
-    monster_Names (lv) {
+    monster_Names (lv: number) {
         const names_a = [
             '影魅狸奴', '幽谷灵蛇', '雾隐狐仙', '松间灵猴', '月影蝠妖',
             '山涧蛟童', '林涧鹿灵', '岩隙石精', '风鸣鹤怪', '翠竹蛙仙'
@@ -26,40 +26,40 @@ const monsters = {
             return names_d[Math.floor(Math.random() * names_c.length)];
         }
     },
-    monster_Attack (lv) {
+    monster_Attack (lv: number) {
         if (lv <= 144) {
             return this.getRandomInt(50, 150) * lv;
         } else {
             return this.getRandomInt(10000, 50000) * lv;
         }
     },
-    monster_Health (lv) {
+    monster_Health (lv: number) {
         if (lv <= 144) {
             return this.getRandomInt(100, 500) * lv;
         } else {
             return this.getRandomInt(10000, 50000) * lv;
         }
     },
-    monster_Defense (lv) {
+    monster_Defense (lv: number) {
         if (lv <= 144) {
             return this.getRandomInt(1, 15) * lv;
         } else {
             return this.getRandomInt(500, 1000) * lv;
         }
     },
-    monster_Criticalhitrate (lv) {
+    monster_Criticalhitrate (lv: number) {
         if (lv <= 144) {
             return this.getRandomFloatInRange(0.001, 0.01);
         } else {
             return this.getRandomFloatInRange(0.1, 0.75);
         }
     },
-    getRandomInt (min, max) {
+    getRandomInt (min: number, max: number) {
         min = Math.ceil(min);
         max = Math.floor(max);
         return Math.floor(Math.random() * (max - min + 1)) + min;
     },
-    getRandomFloatInRange (min, max) {
+    getRandomFloatInRange (min: number, max: number) {
         return Math.random() * (max - min) + min;
     }
 };
