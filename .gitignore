@@ -2,7 +2,7 @@
 pnpm-lock.yaml
 node_modules
 /dist
-
+/dev-dist
 
 # local env files
 .env.local
@@ -22,3 +22,5 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+
