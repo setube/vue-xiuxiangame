@@ -43,6 +43,7 @@ export default {
 		return {
 			timer: null,
 			player: {},
+			ageTimer: null,
 		}
 	},
 	watch: {
@@ -58,7 +59,7 @@ export default {
 	mounted() {
 		// 玩家数据
 		this.player = this.$store.player
-		setInterval(() => {
+		this.ageTimer = setInterval(() => {
 			// 每分钟增加1岁
 			this.player.age += 1
 			// 每分钟更新一次玩家最后在线时间
@@ -66,6 +67,9 @@ export default {
 		}, 60000)
 		// 如果有脚本的话, 执行脚本内容
 		if (this.player.script) new Function(this.player.script)()
+	},
+	beforeDestroy() {
+		clearInterval(this.ageTimer)
 	},
 }
 </script>
