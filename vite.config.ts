@@ -8,7 +8,7 @@ import IconsResolver from 'unplugin-icons/resolver';
 import { defineConfig } from 'vite';
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
 import vitePluginBundleObfuscator from 'vite-plugin-bundle-obfuscator';
-
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
     base: './',
@@ -36,6 +36,7 @@ export default defineConfig({
     },
     plugins: [
         vue(),
+        tailwindcss(),
         Icons({
             autoInstall: true
         }),

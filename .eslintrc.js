@@ -1,4 +1,4 @@
-export default {
+module.exports = {
   parser: 'vue-eslint-parser',
   env: {
     node: true,

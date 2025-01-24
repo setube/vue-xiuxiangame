@@ -19,6 +19,5 @@ module.exports = {
         //         'ie >= 10'
         //     ], grid: true
         // }),
-        tailwindcss: {},
     }
 };
