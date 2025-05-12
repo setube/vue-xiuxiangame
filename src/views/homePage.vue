@@ -1832,8 +1832,9 @@ export default {
             // 需要炼器的装备信息
             this.strengthenInfo = equipment;
             // 炼器等级
-            if (this.player.equipment[type]) {
-              this.player.equipment[type].strengthen = equipment.strengthen ? equipment.strengthen : 0;
+            // Only update strengthen info if it doesn't exist in the equipped item
+            if (this.player.equipment[type] && !this.player.equipment[type].hasOwnProperty('strengthen')) {
+                this.player.equipment[type].strengthen = equipment.strengthen || 0;
             }
           },
             // 装备信息
