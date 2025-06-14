@@ -1752,7 +1752,7 @@
     // 炼器消耗道具数量
     const calculateCost = calcEnhanceCost(item)
     // 如果炼器石不足
-    if (calculate > player.value.props.strengtheningStone) {
+    if (calculateCost > player.value.props.strengtheningStone) {
       // 发送通知
       gameNotifys({
         title: '炼器提示',
