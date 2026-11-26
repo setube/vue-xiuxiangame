@@ -1,12 +1,42 @@
-name: 自动化创建Docker镜像
+name: 检查并发布Docker镜像
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: 检查代码
+        uses: actions/checkout@v7
+      - name: 设置 Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.5
+      - name: 安装锁定依赖
+        run: bun install --frozen-lockfile
+      - name: 检查类型、断言和测试
+        run: bun run check
+      - name: 构建生产版本
+        run: bun run build
+      - name: 读取版本
+        id: version
+        run: bun -e 'const p = await Bun.file("package.json").json(); await Bun.write(process.env.GITHUB_OUTPUT, "version=" + p.version + "\n")'
+
   build:
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -14,27 +44,27 @@ jobs:
 
     steps:
       - name: 检查代码
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
 
       - name: 设置QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v4
 
       - name: 设置Docker Buildx
-        uses: docker/setup-buildx-action@v2
-        with:
-          platforms: linux/amd64,linux/arm64
+        uses: docker/setup-buildx-action@v4
 
       - name: 登录 GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 构建并推送多架构Docker镜像
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/vue-xiuxiangame:latest
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/vue-xiuxiangame:latest
+            ghcr.io/${{ github.repository_owner }}/vue-xiuxiangame:${{ needs.check.outputs.version }}

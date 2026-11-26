@@ -30,20 +30,24 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { ref, computed, onMounted } from 'vue'
   import { useMainStore } from '@/plugins/store'
   import { gameNotifys } from '@/plugins/game'
+  import { invariant } from '@/utils/assert'
+
+  type CellType = 'trap' | 'empty' | 'event' | 'reward' | 'monster'
+  interface Cell { type: CellType; revealed: boolean }
 
   const store = useMainStore()
 
   const player = ref(store.player)
-  const board = ref([])
+  const board = ref<Cell[][]>([])
   const gameOver = ref(false)
   const boardSize = ref(8)
   const movesLeft = ref(20)
   const rewardMoney = ref(0)
-  const cellTypes = ref({
+  const cellTypes = ref<Record<'TRAP' | 'EMPTY' | 'EVENT' | 'REWARD' | 'MONSTER', CellType>>({
     TRAP: 'trap',
     EMPTY: 'empty',
     EVENT: 'event',
@@ -61,10 +65,10 @@
 
   const initializeBoard = () => {
     board.value = Array(boardSize.value)
-      .fill()
+      .fill(null)
       .map(() =>
         Array(boardSize.value)
-          .fill()
+          .fill(null)
           .map(() => ({
             type: cellTypes.value.EMPTY,
             revealed: false
@@ -76,7 +80,8 @@
     placeRandomCells(cellTypes.value.EVENT, 5)
   }
 
-  const placeRandomCells = (type, count) => {
+  const placeRandomCells = (type: CellType, count: number) => {
+    invariant(Number.isInteger(count) && count >= 0 && count <= boardSize.value ** 2, '秘境格子数量越界')
     for (let i = 0; i < count; i++) {
       let row, col
       do {
@@ -87,7 +92,8 @@
     }
   }
 
-  const revealCell = (row, col) => {
+  const revealCell = (row: number, col: number) => {
+    invariant(Number.isInteger(row) && row >= 0 && row < boardSize.value && Number.isInteger(col) && col >= 0 && col < boardSize.value, '秘境坐标越界')
     if (gameOver.value || board.value[row][col].revealed || !canExplore.value || movesLeft.value <= 0) return
     const cell = board.value[row][col]
     cell.revealed = true
@@ -118,7 +124,7 @@
     }
   }
 
-  const getCellContent = cell => {
+  const getCellContent = (cell: Cell) => {
     const { TRAP, EVENT, REWARD, MONSTER } = cellTypes.value
     const contents = {
       [TRAP]: '💥',

@@ -37,20 +37,21 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { useRoute } from 'vue-router'
   import { ref, watch, computed, onMounted } from 'vue'
   import { useMainStore } from './plugins/store'
 
-  const player = ref({})
+  const player = ref(useMainStore().player)
   const route = useRoute()
   const key = computed(() => route.path)
 
   watch(
     () => player.value.dark,
     val => {
-      document.querySelector('html').classList = val ? 'dark' : ''
-    }
+      document.documentElement.classList.toggle('dark', val)
+    },
+    { immediate: true }
   )
 
   onMounted(() => {

@@ -64,7 +64,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { ref, onMounted } from 'vue'
   import { useRouter } from 'vue-router'
   import { useMainStore } from '@/plugins/store'
@@ -72,11 +72,11 @@
 
   const router = useRouter()
   const local = useMainStore()
-  const player = ref({})
+  const player = ref(local.player)
   const activeName = ref('')
   const dialogVisible = ref(true)
 
-  const zhengce = bool => {
+  const zhengce = (bool: boolean) => {
     if (bool) router.push('/home')
     else ElNotification({ title: '提示', message: '未同意隐私政策无法进入游戏' })
     player.value.zc = bool

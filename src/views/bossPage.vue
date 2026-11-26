@@ -21,7 +21,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+  import type { ScrollbarInstance } from 'element-plus'
+  import type { EquipmentSlot } from '@/types/game'
+  import { isEquipment } from '@/utils/assert'
   import boss from '@/plugins/boss'
   import { useRouter } from 'vue-router'
   import { ref, onUnmounted, onMounted } from 'vue'
@@ -32,16 +35,16 @@
   const router = useRouter()
   const store = useMainStore()
   const isEnd = ref(false)
-  const texts = ref([])
+  const texts = ref<string[]>([])
   const player = ref(store.player)
-  const timerIds = ref([])
+  const timerIds = ref<ReturnType<typeof setInterval>[]>([])
   const currency = ref(boss.getRandomInt(1, 10))
   const isFighting = ref(false)
   const startFight = ref(false)
   const isequipment = ref(false)
   const guashaRounds = ref(50)
-  const equipmentInfo = ref({})
-  const scrollbar = ref(null)
+  const equipmentInfo = ref<EquipmentSlot>({})
+  const scrollbar = ref<ScrollbarInstance | null>(null)
 
   // 开始攻击
   const startFightBoss = () => {
@@ -52,6 +55,7 @@
     const timerId = setInterval(() => {
       fightBoss()
       const element = scrollbar.value?.wrapRef
+      if (!element) return
       const observer = new MutationObserver(() => {
         smoothScrollToBottom(element)
       })
@@ -208,7 +212,8 @@
     }
   }
 
-  const openEquipmentInfo = item => {
+  const openEquipmentInfo = (item: EquipmentSlot) => {
+    if (!isEquipment(item)) return
     if (!isequipment.value) return
     ElMessageBox.confirm('', item.name, {
       center: true,
@@ -220,8 +225,8 @@
         <p>气血: ${formatNumberToChineseUnit(item.health)}</p>
         <p>攻击: ${formatNumberToChineseUnit(item.attack)}</p>
         <p>防御: ${formatNumberToChineseUnit(item.defense)}</p>
-        <p>闪避率: ${(item.dodge * 100).toFixed(2) ?? 0}%</p>
-        <p>暴击率: ${(item.critical * 100).toFixed(2) ?? 0}%</p>
+        <p>闪避率: ${(item.dodge * 100).toFixed(2)}%</p>
+        <p>暴击率: ${(item.critical * 100).toFixed(2)}%</p>
         </div>
     </div>`,
       showClose: false,
@@ -268,7 +273,7 @@
   }
 
   // 计算当前时间和指定时间相差多少分钟
-  const getMinuteDifference = specifiedTimestamp => {
+  const getMinuteDifference = (specifiedTimestamp: number) => {
     // 获取当前时间戳（秒数）
     const currentTimestamp = Math.floor(Date.now() / 1000)
     specifiedTimestamp = specifiedTimestamp == 0 ? currentTimestamp : specifiedTimestamp

@@ -27,7 +27,7 @@
         <div
           v-for="(cell, index) in grid"
           :key="index"
-          :ref="el => (cellRefs[index] = el)"
+          :ref="el => setCellRef(el, index)"
           :class="['grid-item', cell.type, `x-${index % gridSize}`, `y-${Math.floor(index / gridSize)}`]"
           :style="{ backgroundColor: cell.his }"
           @click="gridInfo(index, cell)"
@@ -80,7 +80,7 @@
               ref="movingContainer"
               :style="{
                 animation: fishing.overlap ? 'wobble .5s ease-in-out infinite' : '',
-                transformorigin: fishing.overlap ? 'bottom center' : ''
+                transformOrigin: fishing.overlap ? 'bottom center' : ''
               }"
             >
               <svg viewBox="0 0 1024 1024">
@@ -122,7 +122,7 @@
           @mousedown="startFishing"
           @mouseup="stopFishing"
           @mouseleave="stopFishing"
-          @click="moveButton('click')"
+          @click="moveButton"
           :disabled="fishing.disabled"
           class="button"
         >
@@ -167,7 +167,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
   // tag组件
   import tag from '@/components/tag.vue'
   // npc
@@ -180,11 +180,24 @@
   import { ElMessageBox } from 'element-plus'
   import { levelNames, gameNotifys } from '@/plugins/game'
   import MinHeap from '@/plugins/minheap'
+  import type { ComponentPublicInstance } from 'vue'
+  import type { MapCell, NPC, Quality } from '@/types/game'
+  import { invariant } from '@/utils/assert'
+
+  type Position = [number, number]
+  type Direction = 'up' | 'down' | 'left' | 'right'
+  interface Gift { lv: Quality; plus: number; name: string; price: number }
+  interface FishingState {
+    score: number; bottom: string; overlap: boolean; timerIds: number[]
+    timeLeft: number; gameOver: boolean; disabled: boolean; timeExpired: boolean
+    progressText: number; innerPosition: number; moveUpAnimationId: number
+    progressPercentage: string; moveDownAnimationId: number; moveParentContainerId: number
+  }
 
   const router = useRouter()
   const store = useMainStore()
   // 保存每个格子的数据
-  const grid = ref([])
+  const grid = ref<MapCell[]>([])
   // 玩家数据
   const player = ref(store.player)
   // 地图数据
@@ -193,9 +206,9 @@
   const playerX = ref(0)
   // 玩家在Y轴的位置
   const playerY = ref(0)
-  const npcInfo = ref({})
+  const npcInfo = ref<NPC>({ name: '', lv: 0, position: 0, favorability: 0, reincarnation: 0 })
   // 钓鱼相关
-  const fishing = ref({
+  const fishing = ref<FishingState>({
     // 分数
     score: 0,
     bottom: '0px',
@@ -216,13 +229,13 @@
     // 内部容器位置
     innerPosition: 0,
     // 向上移动的动画ID
-    moveUpAnimationId: '',
+    moveUpAnimationId: 0,
     // 进度条百分比
     progressPercentage: '0%',
     // 向下移动的动画ID
-    moveDownAnimationId: '',
+    moveDownAnimationId: 0,
     // 父容器的动画ID
-    moveParentContainerId: ''
+    moveParentContainerId: 0
   })
   const npcShow = ref(false)
   // 地图的大小
@@ -231,21 +244,24 @@
   // NPC的数量
   const npcCount = ref(10)
   // 是否正在长按
-  const holdingId = ref(null)
+  const holdingId = ref<number | null>(null)
   // 钓鱼点坐标
-  const fishingMap = ref([])
+  const fishingMap = ref<number[]>([])
   // 钓鱼弹窗
   const fishingShow = ref(false)
   // 障碍物的数量
   const obstacleCount = ref(0)
-  const cellRefs = ref([])
-  const movingContainer = ref(null)
-  const outerContainer = ref(null)
-  const innerContainer = ref(null)
+  const cellRefs = ref<(HTMLElement | null)[]>([])
+  const movingContainer = ref<HTMLElement | null>(null)
+  const outerContainer = ref<HTMLElement | null>(null)
+  const innerContainer = ref<HTMLElement | null>(null)
+  const setCellRef = (element: Element | ComponentPublicInstance | null, index: number) => {
+    cellRefs.value[index] = element instanceof HTMLElement ? element : null
+  }
   // 礼物列表
   const giftItems = computed(() => {
-    const arr = []
-    const num = {
+    const arr: Gift[] = []
+    const num: Record<number, string> = {
       1: '一',
       2: '二',
       3: '三',
@@ -253,7 +269,7 @@
       5: '五',
       6: '六'
     }
-    const lv = {
+    const lv: Record<number, Quality> = {
       1: 'info',
       2: 'success',
       3: 'primary',
@@ -261,7 +277,7 @@
       5: 'warning',
       6: 'danger'
     }
-    const price = {
+    const price: Record<number, number> = {
       1: 200,
       2: 400,
       3: 800,
@@ -338,14 +354,15 @@
   // 清空所有定时
   const clearAllTiming = () => {
     fishing.value.timerIds.forEach(id => clearInterval(id))
+    fishing.value.timerIds = []
   }
 
   // 初始化地图
   const initializeGrid = () => {
     // 生成地图
     grid.value = Array(totalCells.value)
-      .fill()
-      .map(() => ({ his: '', type: 'empty' }))
+      .fill(null)
+      .map<MapCell>(() => ({ his: '', type: 'empty' }))
     const safeZone = createSafeZone()
     // 障碍物的数量
     obstacleCount.value = Math.floor(totalCells.value * 0.1)
@@ -367,7 +384,7 @@
 
   // 创建一个安全区域，该区域是围绕玩家当前位置的 5x5 网格
   const createSafeZone = () => {
-    const safeZone = new Set()
+    const safeZone = new Set<number>()
     for (let y = playerY.value - 2; y <= playerY.value + 2; y++) {
       for (let x = playerX.value - 2; x <= playerX.value + 2; x++) {
         // 确保坐标在有效的网格范围内
@@ -391,39 +408,40 @@
   // 使用 A* 算法检查从起点到终点的路径是否可用
   const isPathAvailable = () => {
     // 起点坐标
-    const start = [playerY.value, playerX.value]
+    const start: Position = [playerY.value, playerX.value]
     // 终点坐标
-    const end = [49, 49]
+    const end: Position = [49, 49]
     // 四个方向的移动方式
-    const directions = [
+    const directions: Position[] = [
       [0, 1],
       [1, 0],
       [0, -1],
       [-1, 0]
     ]
     // 计算启发式函数（曼哈顿距离加上一个小权重）
-    const heuristic = (a, b) => {
+    const heuristic = (a: Position, b: Position) => {
       const d1 = Math.abs(a[0] - b[0])
       const d2 = Math.abs(a[1] - b[1])
       return d1 + d2 + 0.1 * Math.min(d1, d2)
     }
     // 初始化 A* 算法所需的数据结构
-    const openSet = new MinHeap() // 用于存储待检查的节点
-    const cameFrom = new Map() // 记录路径
-    const gScore = new Map() // 记录从起点到当前节点的实际代价
-    const fScore = new Map() // 记录从起点到终点的估算代价
+    const openSet = new MinHeap<Position>() // 用于存储待检查的节点
+    const cameFrom = new Map<string, Position>() // 记录路径
+    const gScore = new Map<string, number>() // 记录从起点到当前节点的实际代价
+    const fScore = new Map<string, number>() // 记录从起点到终点的估算代价
     gScore.set(start.toString(), 0)
     fScore.set(start.toString(), heuristic(start, end))
-    openSet.add(start, fScore.get(start.toString()))
+    openSet.add(start, heuristic(start, end))
     while (!openSet.isEmpty()) {
       // 获取具有最低 f 值的节点
       const current = openSet.poll()
+      invariant(current, '地图寻路队列不能为空')
       // 如果当前节点是终点，则路径可用
       if (current[0] === 49 && current[1] === 49) return true
       for (const [dy, dx] of directions) {
         const newY = current[0] + dy
         const newX = current[1] + dx
-        const neighbor = [newY, newX]
+        const neighbor: Position = [newY, newX]
         // 确保邻居节点在有效的网格范围内且为空
         if (
           newY >= 0 &&
@@ -432,9 +450,9 @@
           newX < gridSize.value &&
           grid.value[newY * gridSize.value + newX].type === 'empty'
         ) {
-          const tentativeGScore = gScore.get(current.toString()) + 1
+          const tentativeGScore = (gScore.get(current.toString()) ?? Infinity) + 1
           // 如果找到更短的路径
-          if (!gScore.has(neighbor.toString()) || tentativeGScore < gScore.get(neighbor.toString())) {
+          if (tentativeGScore < (gScore.get(neighbor.toString()) ?? Infinity)) {
             cameFrom.set(neighbor.toString(), current)
             gScore.set(neighbor.toString(), tentativeGScore)
             const fScoreValue = tentativeGScore + heuristic(neighbor, end)
@@ -449,18 +467,18 @@
   }
 
   // 生成指定数量的障碍物，并确保生成后路径仍然可用
-  const generateItems = (type, count, excludeSet) => {
+  const generateItems = (type: 'obstacle' | 'fishing', count: number, excludeSet: Set<number>) => {
+    invariant(Number.isInteger(count) && count >= 0 && count < totalCells.value, '地图元素数量越界')
     // 将所有现有的障碍物转换为空
     grid.value.forEach(cell => {
       if (cell.type === type) cell.type = 'empty'
     })
     let placed = 0
-    const arr = []
+    const arr: number[] = []
     // 用来存储每个钓鱼点周围的5x5区域
-    const restrictedZone = new Set()
+    const restrictedZone = new Set<number>()
     while (placed < count) {
       const index = Math.floor(Math.random() * totalCells.value)
-      const arrIndex = Math.floor(Math.random() * 25)
       // 检查是否新生成的位置在安全区域或禁区内，并且该格子为空
       if (!excludeSet.has(index) && !restrictedZone.has(index) && grid.value[index].type === 'empty') {
         grid.value[index].type = type
@@ -483,27 +501,28 @@
   }
 
   // 生成指定数量的 NPC，并确保生成后路径仍然可用
-  const generateNpcs = (count, excludeSet) => {
+  const generateNpcs = (count: number, excludeSet: Set<number>) => {
     // 将所有现有的 NPC 转换为空
     grid.value.forEach(cell => {
       if (cell.type === 'npc') cell.type = 'empty'
     })
-    const npcs = player.value.npcs.length ? player.value.npcs : npc.npcNames()
-    const isData = player.value.npcs.length
-    let arr = []
+    const existingNpcs = player.value.npcs
+    const names = npc.npcNames()
+    const arr: NPC[] = []
     let placed = 0
     while (placed < count) {
       const index = Math.floor(Math.random() * totalCells.value)
       // 确保新生成的 NPC 不在安全区域内且为空
       if (!excludeSet.has(index) && grid.value[index].type === 'empty') {
-        const favorability = isData ? npcs[placed].favorability : 0
+        const existing = existingNpcs[placed]
+        const favorability = existing?.favorability ?? 0
         const lightness = calculateLightness(favorability)
         // 设置 NPC 的颜色
         grid.value[index].his = `hsl(340, 82%, ${lightness}%, 1)`
         grid.value[index].type = 'npc'
         const npcData = {
           lv: 144,
-          name: isData ? npcs[placed].name : npcs[placed],
+          name: existing?.name ?? names[placed],
           position: index,
           favorability: favorability,
           reincarnation: 10
@@ -522,7 +541,7 @@
   }
 
   // 将目标的5x5范围改为禁区
-  const addToRestrictedZone = (index, restrictedZone) => {
+  const addToRestrictedZone = (index: number, restrictedZone: Set<number>) => {
     const gridX = index % gridSize.value
     const gridY = Math.floor(index / gridSize.value)
     // 遍历钓鱼点周围的5x5区域
@@ -537,7 +556,7 @@
   }
 
   // 根据亲密度计算颜色亮度
-  const calculateLightness = favorability => {
+  const calculateLightness = (favorability: number) => {
     const maxFavorability = 1000
     const minLightness = 50 // 最暗
     const maxLightness = 76 // 最亮
@@ -546,7 +565,7 @@
     return minLightness + (maxLightness - minLightness) * percentage
   }
 
-  const harvestNpc = item => {
+  const harvestNpc = (item: NPC) => {
     ElMessageBox.confirm('与对方结为道侣有50%的概率失败, 失败后好感度会清空, 请问还想与对方结为道侣吗?', '结为道侣', {
       center: true,
       cancelButtonText: '取消',
@@ -576,7 +595,7 @@
   }
 
   // 礼物信息
-  const giftInfo = (item, index) => {
+  const giftInfo = (item: Gift, index: number) => {
     ElMessageBox.confirm('', '赠送礼物', {
       center: true,
       message: `<div class="monsterinfo">
@@ -614,7 +633,8 @@
   }
 
   // 地图信息
-  const gridInfo = (index, item) => {
+  const gridInfo = (index: number, item: MapCell) => {
+    invariant(Number.isInteger(index) && index >= 0 && index < grid.value.length, '地图坐标越界')
     // 如果坐标不是空地
     if (item.type != 'empty') return
     const x = index % gridSize.value
@@ -686,7 +706,7 @@
   }
 
   // 计算玩家指定方向是否有NPC或障碍物
-  const checkDirection = direction => {
+  const checkDirection = (direction: Direction) => {
     const directions = {
       up: (playerY.value - 1) * gridSize.value + playerX.value,
       down: (playerY.value + 1) * gridSize.value + playerX.value,
@@ -698,10 +718,10 @@
   }
 
   // 根据方向移动玩家
-  const move = direction => {
+  const move = (input: string | KeyboardEvent) => {
     let newX = playerX.value
     let newY = playerY.value
-    direction = typeof direction === 'string' ? direction : direction.key
+    const direction = typeof input === 'string' ? input : input.key
     switch (direction) {
       case 'q':
         goHome()
@@ -748,7 +768,7 @@
     }
   }
 
-  const goPlayerXY = (newY, newX) => {
+  const goPlayerXY = (newY: number, newX: number) => {
     const newIndex = newY * gridSize.value + newX
     // 仅在目标位置为空地时移动玩家
     if (grid.value[newIndex].type === 'empty') {
@@ -759,7 +779,7 @@
   }
 
   // 滚动条自动滚动到玩家所在行
-  const updateScroll = playerIndex => {
+  const updateScroll = (playerIndex: number) => {
     const playerCell = cellRefs.value[playerIndex]
     if (playerCell) {
       store.mapScroll = playerIndex
@@ -769,12 +789,15 @@
 
   // 找到并与附近的NPC对话
   const talkToNpc = () => {
+    const nearbyNpc = player.value.npcs.find(npc => nearbyIndices.value.includes(npc.position))
+    if (!nearbyNpc) return
     npcShow.value = true
-    npcInfo.value = player.value.npcs.find(npc => nearbyIndices.value.includes(npc.position))
+    npcInfo.value = nearbyNpc
   }
 
   // 概率计算
-  const isLucky = probability => {
+  const isLucky = (probability: number) => {
+    invariant(Number.isFinite(probability) && probability >= 0 && probability <= 100, '概率必须介于0和100之间')
     // 生成一个0到100之间的随机数
     const randomValue = Math.random() * 100
     // 判断随机数是否小于等于传入的概率值
@@ -782,8 +805,8 @@
   }
 
   // 判断玩家是否已当前NPC结为道侣
-  const isHaveWife = name => {
-    if (name) return player.value.wifes.some(item => item.name === name)
+  const isHaveWife = (name: string) => {
+    return !!name && player.value.wifes.some(item => item.name === name)
   }
 
   // 钓鱼
@@ -798,7 +821,7 @@
   const startFishing = () => {
     if (!holdingId.value) {
       moveButton()
-      holdingId.value = setInterval(moveButton, 100)
+      holdingId.value = window.setInterval(moveButton, 100)
     }
   }
 
@@ -813,11 +836,13 @@
   // 移动鱼的位置
   const moveParentContainer = () => {
     if (!fishingShow.value) return
-    if (!movingContainer.value) return
+    const moving = movingContainer.value
+    const outer = outerContainer.value
+    if (!moving || !outer) return
     // 移动速度
     const speed = 3000
     // 最大Y轴移动范围
-    const maxY = outerContainer.value?.clientHeight - movingContainer.value?.clientHeight
+    const maxY = outer.clientHeight - moving.clientHeight
     const move = () => {
       // 如果时间已到，停止移动
       if (fishing.value.timeExpired) {
@@ -828,8 +853,8 @@
       // 随机生成新的Y轴位置
       const newY = Math.random() * maxY
       // 设置新的位置
-      movingContainer.value.style.transition = `top ${speed}ms ease`
-      movingContainer.value.style.top = `${newY}px`
+      moving.style.transition = `top ${speed}ms ease`
+      moving.style.top = `${newY}px`
       // 在动画结束后调用下一次移动
       setTimeout(() => {
         if (!fishing.value.timeExpired) {
@@ -844,8 +869,8 @@
   // 鱼钩自动向下移动
   const autoMoveDown = () => {
     const step = () => {
-      const outerHeight = outerContainer.value?.clientHeight
-      const innerHeight = innerContainer.value?.clientHeight
+      const inner = innerContainer.value
+      if (fishing.value.timeExpired || !inner) return
       // 检查钓鱼的容器是否触底
       if (fishing.value.innerPosition <= 0) {
         // 如果触底且没有重叠，则扣除分数和进度
@@ -856,7 +881,7 @@
       } else {
         // 向下移动
         fishing.value.innerPosition -= 1
-        innerContainer.value.style.bottom = `${fishing.value.innerPosition}px`
+        inner.style.bottom = `${fishing.value.innerPosition}px`
         // 检查碰撞
         checkCollision()
       }
@@ -869,16 +894,20 @@
 
   // 平滑向上移动鱼钩的位置
   const smoothMoveUp = () => {
+    const outer = outerContainer.value
+    const inner = innerContainer.value
+    if (!outer || !inner || fishing.value.timeExpired) return
     // 目标位置
     const targetPosition = Math.min(
       fishing.value.innerPosition + 10,
-      outerContainer.value?.clientHeight - innerContainer.value?.clientHeight
+      outer.clientHeight - inner.clientHeight
     )
     const step = () => {
+      if (fishing.value.timeExpired) return
       if (fishing.value.innerPosition < targetPosition) {
         // 向上移动
         fishing.value.innerPosition += 2
-        innerContainer.value.style.bottom = `${fishing.value.innerPosition}px`
+        inner.style.bottom = `${fishing.value.innerPosition}px`
         // 请求下一帧动画
         fishing.value.moveUpAnimationId = requestAnimationFrame(step)
       }
@@ -895,6 +924,7 @@
     const movingRect = movingContainer.value?.getBoundingClientRect()
     // 获取鱼钩的矩形区域
     const innerRect = innerContainer.value?.getBoundingClientRect()
+    if (!movingRect || !innerRect) return
     // 判断鱼钩是否触底
     const isTouchingBottom = fishing.value.innerPosition <= 0
     // 判断是否有重叠
@@ -913,7 +943,7 @@
       ? Math.max(fishing.value.score - 0.2, 0)
       : Math.max(fishing.value.score - 0.2, 0)
     // 更新分数后更新进度条
-    updateProgressBar(fishing.value.score)
+    updateProgressBar()
     // 更新重叠状态
     fishing.value.overlap = isOverlap
   }
@@ -927,6 +957,7 @@
     if (fishing.value.score >= maxScore && !fishing.value.gameOver) {
       fishing.value.gameOver = true
       const fishInfo = getRandomFish()
+      invariant(fishInfo, '未能生成有效的钓鱼奖励')
       // 清空所有定时
       clearAllTiming()
       ElMessageBox.confirm(fishInfo.description, fishInfo.name, {
@@ -954,7 +985,7 @@
 
   // 启动计时器
   const startTimer = () => {
-    const timer = setInterval(() => {
+    const timer = window.setInterval(() => {
       fishing.value.timeLeft--
       // 倒计时结束
       if (fishing.value.timeLeft == 0) {
@@ -977,11 +1008,12 @@
   // 结束游戏
   const endGame = () => {
     fishingShow.value = false
+    stopFishing()
     // 清空所有定时
     clearAllTiming()
     // 移除钓鱼点
     const index = store.fishingMap.find(index => nearbyIndices.value.includes(index))
-    grid.value[index].type = 'empty'
+    if (index !== undefined && grid.value[index]) grid.value[index].type = 'empty'
     // 结束所有动画
     cancelAnimationFrame(fishing.value.moveUpAnimationId)
     cancelAnimationFrame(fishing.value.moveDownAnimationId)
@@ -994,13 +1026,16 @@
   const startGame = () => {
     fishingShow.value = true
     resetFishingData(false)
-    nextTick(() => moveParentContainer())
-    autoMoveDown()
-    startTimer()
+    nextTick(() => {
+      if (!fishingShow.value) return
+      moveParentContainer()
+      autoMoveDown()
+      startTimer()
+    })
   }
 
   // 重置所有钓鱼数据
-  const resetFishingData = bool => {
+  const resetFishingData = (bool: boolean) => {
     // 分数
     fishing.value.score = 0
     // 是否重叠
@@ -1081,6 +1116,11 @@
   })
 
   onUnmounted(() => {
+    fishing.value.timeExpired = true
+    stopFishing()
+    cancelAnimationFrame(fishing.value.moveUpAnimationId)
+    cancelAnimationFrame(fishing.value.moveDownAnimationId)
+    cancelAnimationFrame(fishing.value.moveParentContainerId)
     // 清空所有定时
     clearAllTiming()
     // 移除键盘监听

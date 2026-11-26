@@ -6,7 +6,7 @@
           v-for="(cell, colIndex) in row"
           :key="colIndex"
           @click="makeMove(rowIndex, colIndex)"
-          :disabled="cell !== ' ' || !canPlay"
+          :disabled="cell !== ' ' || !canPlay || gameEnded || currentPlayer !== 'X'"
           class="cell"
         >
           {{ cell }}
@@ -19,12 +19,18 @@
   </div>
 </template>
 
-<script setup>
-  import { ref, computed, defineEmits, onMounted } from 'vue'
+<script setup lang="ts">
+  import { ref, computed, onMounted, onUnmounted } from 'vue'
   import { useMainStore } from '@/plugins/store'
+  import { invariant } from '@/utils/assert'
+  import type { CooldownUpdate, GameResult } from './types'
+
+  type Marker = 'X' | 'O'
+  type Cell = Marker | ' '
+  type Position = [number, number]
 
   // 定义获胜组合
-  const WINNING_LINES = [
+  const WINNING_LINES: Position[][] = [
     [
       [0, 0],
       [0, 1],
@@ -67,21 +73,26 @@
     ] // 两条对角线
   ]
   const store = useMainStore()
-  const emit = defineEmits(['game-result', 'update-next-game-time'])
+  const emit = defineEmits<{
+    'game-result': [result: GameResult]
+    'update-next-game-time': [update: CooldownUpdate]
+  }>()
 
   // 游戏棋盘，3x3阵列，初始填充为空格
-  const board = ref([
+  const board = ref<Cell[][]>([
     [' ', ' ', ' '],
     [' ', ' ', ' '],
     [' ', ' ', ' ']
   ])
   const canPlay = ref(false)
   // 当前玩家，'X' 或 'O'
-  const currentPlayer = ref('X')
+  const currentPlayer = ref<Marker>('X')
   // 游戏是否已经结束
   const gameEnded = ref(false)
   const gameStatus = ref('')
   const player = ref(store.player)
+  let reservedStake = 0
+  let computerTimer: ReturnType<typeof setTimeout> | undefined
 
   // 检查是否有玩家获胜
   const checkWinner = computed(() => {
@@ -104,14 +115,23 @@
   })
 
   const finish = () => {
-    canPlay.value = true
-    gameEnded.value = false
+    canPlay.value = Date.now() >= nextGameTime.value && hasEnoughMoney.value
+    if (canPlay.value) resetGame()
   }
 
   // 处理玩家的移动
-  const makeMove = (row, col) => {
+  const makeMove = (row: number, col: number) => {
+    invariant(Number.isInteger(row) && row >= 0 && row < 3 && Number.isInteger(col) && col >= 0 && col < 3, '棋盘坐标越界')
     // 检查单元格是否为空，游戏是否未结束，以及玩家是否可以进行游戏
-    if (board.value[row][col] === ' ' && !gameEnded.value && canPlay.value) {
+    if (board.value[row][col] === ' ' && !gameEnded.value && canPlay.value && currentPlayer.value === 'X') {
+      if (reservedStake === 0) {
+        if (!hasEnoughMoney.value) {
+          canPlay.value = false
+          return
+        }
+        reservedStake = 1000
+        player.value.props.money -= reservedStake
+      }
       // 更新棋盘并检查游戏状态
       updateBoard(row, col, currentPlayer.value)
       if (checkWinner.value) {
@@ -129,9 +149,11 @@
   // 处理天道的行动
   const computerMove = () => {
     if (!gameEnded.value) {
-      setTimeout(() => {
-        let row, col
-        const emptyCells = []
+      computerTimer = setTimeout(() => {
+        computerTimer = undefined
+        if (gameEnded.value || currentPlayer.value !== 'O') return
+        let row: number, col: number
+        const emptyCells: Position[] = []
         board.value.forEach((r, i) => r.forEach((c, j) => c === ' ' && emptyCells.push([i, j])))
         if (!emptyCells.length) return
         ;[row, col] = emptyCells[Math.floor(Math.random() * emptyCells.length)]
@@ -144,7 +166,7 @@
   }
 
   // 更新棋盘数据
-  const updateBoard = (row, col, player) => {
+  const updateBoard = (row: number, col: number, player: Marker) => {
     board.value[row][col] = player
   }
 
@@ -156,6 +178,12 @@
 
   // 重置游戏状态
   const resetGame = () => {
+    clearTimeout(computerTimer)
+    computerTimer = undefined
+    if (reservedStake > 0) {
+      player.value.props.money += reservedStake
+      reservedStake = 0
+    }
     board.value = [
       [' ', ' ', ' '],
       [' ', ' ', ' '],
@@ -167,10 +195,13 @@
   }
 
   // 结束游戏并处理结果
-  const endGame = (status, playerWon) => {
+  const endGame = (status: string, playerWon: boolean) => {
+    if (gameEnded.value || reservedStake === 0) return
     gameStatus.value = status
     gameEnded.value = true
     const reward = playerWon ? 1000 : -1000
+    player.value.props.money += reservedStake + reward
+    reservedStake = 0
     emit('game-result', { success: playerWon, reward })
     const newNextGameTime = Date.now() + 10 * 60 * 1000
     player.value.nextGameTimes.ticTacToe = newNextGameTime
@@ -183,6 +214,12 @@
   onMounted(() => {
     canPlay.value = Date.now() >= nextGameTime.value && hasEnoughMoney.value
     gameStatus.value = `${player.value.name}的轮次`
+  })
+
+  onUnmounted(() => {
+    clearTimeout(computerTimer)
+    if (reservedStake > 0) player.value.props.money += reservedStake
+    reservedStake = 0
   })
 </script>
 

@@ -48,7 +48,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+  import type { ScrollbarInstance } from 'element-plus'
+  import type { Monster, Equipment } from '@/types/game'
+  import { assert, assertNonNegative } from '@/utils/assert'
+  type TowerMonster = Monster & { level: number; maxHealth: number }
   // 标签组件
   import tag from '@/components/tag.vue'
   // boss
@@ -70,12 +74,12 @@
   // 玩家数据
   const player = ref(store.player)
   // 怪物数据
-  const monster = ref(null)
-  const observer = ref(null)
+  const monster = ref<TowerMonster | null>(null)
+  const observer = ref<MutationObserver | null>(null)
   // 扫荡时间
   const sweepTime = ref(0)
   // 战斗日志
-  const battleLogs = ref([])
+  const battleLogs = ref<string[]>([])
   // 当前层数
   const currentFloor = ref(1)
   // 是否正在扫荡
@@ -90,18 +94,18 @@
     equipmentGained: 0
   })
   // 玩家气血状态
-  const playerStatus = ref('success')
+  const playerStatus = ref<'success' | 'warning' | 'exception'>('success')
   // 怪物气血状态
-  const monsterStatus = ref('success')
+  const monsterStatus = ref<'success' | 'warning' | 'exception'>('success')
   // 扫荡时间间隔
-  const sweepInterval = ref(null)
+  const sweepInterval = ref<ReturnType<typeof setInterval> | null>(null)
   // 是否自动战斗
   const isAutoFighting = ref(false)
   // 自动战斗时间间隔
-  const autoFightInterval = ref(null)
+  const autoFightInterval = ref<ReturnType<typeof setInterval> | null>(null)
   // 扫荡战斗时间间隔
-  const sweepFightInterval = ref(null)
-  const scrollbar = ref(null)
+  const sweepFightInterval = ref<ReturnType<typeof setInterval> | null>(null)
+  const scrollbar = ref<ScrollbarInstance | null>(null)
 
   // 扫荡相关信息
   const sweepData = computed(() => {
@@ -142,7 +146,7 @@
 
   // 怪物血量进度条
   const monsterProgress = computed(() => {
-    return (monster.value.health / monster.value.maxHealth) * 100
+    return monster.value ? (monster.value.health / monster.value.maxHealth) * 100 : 0
   })
 
   // 监听battleLogs变化
@@ -182,12 +186,13 @@
 
   // 怪物气血
   const monsterhealth = () => {
+    if (!monster.value) return '0 / 0'
     const { health, maxHealth } = monster.value
     return `${Math.max(0, health)} / ${Math.max(0, maxHealth)}`
   }
 
   // 动态修改血量状态
-  const getStatus = (health, maxHealth) => {
+  const getStatus = (health: number, maxHealth: number) => {
     const num = (health / maxHealth) * 100
     return num >= 70 ? 'success' : num >= 30 ? 'warning' : 'exception'
   }
@@ -219,9 +224,10 @@
     battleLogs.value.push(`你遇到了本层的守护者: ${monster.value.name}`)
   }
   // 打开双方信息弹窗
-  const openInfo = type => {
+  const openInfo = (type: 'player' | 'monster') => {
     const isPlayer = type == 'player'
     const info = isPlayer ? player.value : monster.value
+    if (!info) return
     ElMessageBox.confirm('', isPlayer ? player.value.name : info.name, {
       center: true,
       message: `<div class="monsterinfo">
@@ -268,7 +274,7 @@
     }
   }
 
-  const generateCombatLog = (attackerName, defenderName, result) => {
+  const generateCombatLog = (attackerName: string, defenderName: string, result: ReturnType<typeof combatSystem.executeCombatRound>) => {
     if (!result.isHit) {
       battleLogs.value.push(`${attackerName}的攻击被${defenderName}闪避了。`)
     } else {
@@ -281,6 +287,7 @@
 
   // 处理怪物被击败的情况
   const handleMonsterDefeat = () => {
+    assert(monster.value, '结算爬塔奖励前必须存在怪物')
     // 修为
     const expGain = Math.floor(monster.value.level * 100)
     // 灵石
@@ -314,7 +321,7 @@
   const handlePlayerDefeat = () => {
     // 日志
     battleLogs.value.push('你被击败了！挑战结束。')
-    battleLogs.value.push(`${monster.value.name}: ${boss.drawPrize(monster.value.level).text}`)
+    if (monster.value) battleLogs.value.push(`${monster.value.name}: ${boss.drawPrize(monster.value.level).text}`)
     // 关闭自动战斗
     isAutoFighting.value = false
     // 关闭扫荡
@@ -336,7 +343,7 @@
 
   // 停止自动战斗
   const stopAutoFight = () => {
-    clearInterval(autoFightInterval.value)
+    if (autoFightInterval.value !== null) clearInterval(autoFightInterval.value)
     autoFightInterval.value = null
   }
 
@@ -355,7 +362,7 @@
 
   // 随机获得装备
   const getRandomEquipment = () => {
-    let equipItem = {}
+    let equipItem: Equipment | undefined
     let exp = Math.floor(player.value.maxCultivation / 100)
     exp = exp ? exp : 1
     const randomInt = equip.getRandomInt(1, 4)
@@ -367,6 +374,7 @@
     else if (randomInt == 3) equipItem = equip.equip_Accessorys(player.value.level)
     // 法器
     else if (randomInt == 4) equipItem = equip.equip_Sutras(player.value.level)
+    assert(equipItem, '未能生成爬塔奖励装备')
     battleLogs.value.push(
       `你发现了一个宝箱，打开后获得${levels[equipItem.quality]}${equipItem.name}(${genre[equipItem.type]})`
     )
@@ -397,8 +405,8 @@
 
   // 停止扫荡
   const stopSweep = () => {
-    clearInterval(sweepInterval.value)
-    clearInterval(sweepFightInterval.value)
+    if (sweepInterval.value !== null) clearInterval(sweepInterval.value)
+    if (sweepFightInterval.value !== null) clearInterval(sweepFightInterval.value)
     sweepInterval.value = null
     sweepFightInterval.value = null
   }
@@ -418,6 +426,7 @@
 
   // 扫荡战斗
   const sweepFight = () => {
+    assertNonNegative(currentFloor.value, '爬塔层数')
     // 根据当前层数计算获得经验值
     const expGain = Math.floor(currentFloor.value * 10)
     // 根据当前层数计算获得灵石
@@ -458,7 +467,7 @@
     }
   }
 
-  const formatTime = seconds => {
+  const formatTime = (seconds: number) => {
     if (seconds < 60) {
       return `${seconds}秒`
     } else if (seconds < 3600) {

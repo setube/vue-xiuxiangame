@@ -19,10 +19,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { ref, computed } from 'vue'
   import { useMainStore } from '@/plugins/store'
   import { gameNotifys } from '@/plugins/game'
+  import type { GameResult } from './types'
 
   const store = useMainStore()
 
@@ -30,11 +31,11 @@
   const rewards = ref([100, 200, 300, 400, 500, 1000, 2000])
   const bonusRewards = ref([100, 2000, 5000])
 
-  const emit = defineEmits(['game-result'])
+  const emit = defineEmits<{ 'game-result': [result: GameResult] }>()
 
   const canCheckIn = computed(() => {
     const now = new Date()
-    const lastCheckin = new Date(player.value.lastCheckinDate)
+    const lastCheckin = new Date(player.value.lastCheckinDate ?? 0)
     return !player.value.lastCheckinDate || now.toDateString() !== lastCheckin.toDateString()
   })
 
@@ -42,16 +43,16 @@
     return 7 - (player.value.checkinStreak % 7)
   })
 
-  const isCheckedIn = day => {
+  const isCheckedIn = (day: number) => {
     return day <= player.value.checkinStreak % 7
   }
 
-  const isCurrentDay = day => {
+  const isCurrentDay = (day: number) => {
     return day === (player.value.checkinStreak % 7) + 1
   }
 
-  const getReward = day => {
-    return rewards.value[day - 1] + (day === 7 ? bonusRewards.value[Math.floor(player.value.checkinStreak / 7)] : 0)
+  const getReward = (day: number) => {
+    return rewards.value[day - 1] + (day === 7 ? bonusRewards.value[Math.min(Math.floor(player.value.checkinStreak / 7), bonusRewards.value.length - 1)] : 0)
   }
 
   const checkIn = () => {

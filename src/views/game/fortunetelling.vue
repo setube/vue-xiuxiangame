@@ -9,19 +9,20 @@
   </div>
 </template>
 
-<script setup>
-  import { ref, computed, defineEmits } from 'vue'
+<script setup lang="ts">
+  import { ref, computed } from 'vue'
   import { useMainStore } from '@/plugins/store'
+  import type { GameResult } from './types'
 
   const store = useMainStore()
-  const result = ref(null)
+  const result = ref<{ message: string } | null>(null)
   const player = ref(store.player)
 
-  const emit = defineEmits(['game-result'])
+  const emit = defineEmits<{ 'game-result': [result: GameResult] }>()
 
   const canTellFortune = computed(() => {
     const now = new Date()
-    const lastFortune = new Date(player.value.fortuneTellingDate)
+    const lastFortune = new Date(player.value.fortuneTellingDate ?? 0)
     return !player.value.fortuneTellingDate || now.toDateString() !== lastFortune.toDateString()
   })
 

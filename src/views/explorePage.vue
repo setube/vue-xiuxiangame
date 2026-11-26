@@ -59,7 +59,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+  import type { ScrollbarInstance } from 'element-plus'
+  import type { Equipment, EquipmentSlot, Monster, Achievement } from '@/types/game'
+  import { assert, isEquipment } from '@/utils/assert'
   import { useRouter } from 'vue-router'
   import { ref, onMounted, onUnmounted } from 'vue'
   // 装备
@@ -81,7 +84,7 @@
   const store = useMainStore()
   const router = useRouter()
   // 日志
-  const texts = ref([])
+  const texts = ref<string[]>([])
   // 是否结束战斗
   const isEnd = ref(false)
   const player = ref(store.player)
@@ -92,7 +95,7 @@
   const loading = ref(true)
   // 是否胜利
   const victory = ref(false)
-  const timerIds = ref([])
+  const timerIds = ref<ReturnType<typeof setInterval>[]>([])
   const isFighting = ref(false)
   // 回合数
   const guashaRounds = ref(10)
@@ -100,11 +103,11 @@
   const isFailedRetreat = ref(false)
   // 收服失败
   const isCaptureFailed = ref(false)
-  const openEquipItemInfo = ref({})
-  const scrollbar = ref(null)
+  const openEquipItemInfo = ref<EquipmentSlot>({})
+  const scrollbar = ref<ScrollbarInstance | null>(null)
 
   // 玩家操作(绑定快捷键)
-  const operate = oprName => {
+  const operate = (oprName: string | KeyboardEvent) => {
     oprName = typeof oprName === 'string' ? oprName : oprName.key
     switch (oprName) {
       // 发起战斗
@@ -185,6 +188,7 @@
     const timerId = setInterval(() => {
       fightMonster()
       const element = scrollbar.value?.wrapRef
+      if (!element) return
       const observer = new MutationObserver(() => {
         smoothScrollToBottom(element)
       })
@@ -260,7 +264,7 @@
         player.value.props.cultivateDan += reincarnation
         // 发送提示
         texts.value.push(`击败${monster.value.name}后你获得了${reincarnation}颗培养丹`)
-        findTreasure(monster.value.name)
+        findTreasure()
         stopFight()
       } else if (player.value.health <= 0) {
         texts.value.push('你因为太弱被击败了。')
@@ -303,7 +307,7 @@
 
   // 发现道具
   const findTreasure = () => {
-    let equipItem = {}
+    let equipItem: Equipment | undefined
     let exp = Math.floor(player.value.maxCultivation / 100)
     exp = exp ? exp : 1
     // 如果总背包容量大于装备背包容量
@@ -317,6 +321,7 @@
     else if (randomInt == 3) equipItem = equip.equip_Accessorys(player.value.level)
     // 法器
     else if (randomInt == 4) equipItem = equip.equip_Sutras(player.value.level)
+    assert(equipItem, '未能生成探索奖励装备')
     texts.value.push(
       `你击败${monster.value.name}后，发现了一个宝箱，打开后获得了<span class="el-tag el-tag--${equipItem.quality}">${
         levels[equipItem.quality]
@@ -359,8 +364,6 @@
           player.value.cultivation += exp
         }
       } else {
-        isStop.value = false
-        isStart.value = false
         player.value.level = maxLv
         player.value.maxCultivation = Math.floor(100 * Math.pow(2, maxLv))
         texts.value.push('你当前的境界已修炼圆满, 需要转生后才能继续修炼')
@@ -368,7 +371,8 @@
     }
   }
   // 发现的装备信息
-  const openEquipmentInfo = item => {
+  const openEquipmentInfo = (item: EquipmentSlot) => {
+    if (!isEquipment(item)) return
     if (!victory.value) return
     ElMessageBox.confirm('', item.name, {
       center: true,
@@ -380,8 +384,8 @@
         <p>气血: ${formatNumberToChineseUnit(item.health)}</p>
         <p>攻击: ${formatNumberToChineseUnit(item.attack)}</p>
         <p>防御: ${formatNumberToChineseUnit(item.defense)}</p>
-        <p>闪避率: ${(item.dodge * 100).toFixed(2) ?? 0}%</p>
-        <p>暴击率: ${(item.critical * 100).toFixed(2) ?? 0}%</p>
+        <p>闪避率: ${(item.dodge * 100).toFixed(2)}%</p>
+        <p>暴击率: ${(item.critical * 100).toFixed(2)}%</p>
       </div>
     </div>`,
       showCancelButton: false,
@@ -390,7 +394,7 @@
     }).catch(() => {})
   }
   // 收服灵宠
-  const harvestPet = item => {
+  const harvestPet = (item: Monster) => {
     isCaptureFailed.value = true
     // 成功几率
     const successRate = calculateCaptureRate()
@@ -409,9 +413,9 @@
         // 血量
         const health = Math.floor(getRandomInt(100, 500) * newProperties)
         // 闪避
-        const dodge = parseFloat(getRandomFloatInRange(0.001, 0.01) * newProperties)
+        const dodge = getRandomFloatInRange(0.001, 0.01) * newProperties
         // 暴击
-        const critical = parseFloat(getRandomFloatInRange(0.001, 0.01) * newProperties)
+        const critical = getRandomFloatInRange(0.001, 0.01) * newProperties
         // 添加到灵宠背包里
         player.value.pets.push({
           id: Date.now(),
@@ -443,14 +447,14 @@
         // 玩家灵宠成就
         const petAchievement = player.value.achievement.pet
         // 完成成就
-        const checkAchievement = item => {
+        const checkAchievement = (item: Achievement) => {
           const conditions = item.condition
           return (
-            (conditions.health === 0 || conditions.health <= health) &&
-            (conditions.attack === 0 || conditions.attack <= attack) &&
-            (conditions.defense === 0 || conditions.defense <= defense) &&
-            (conditions.dodge === 0 || conditions.dodge <= dodge.toFixed(2)) &&
-            (conditions.critical === 0 || conditions.critical <= critical.toFixed(2))
+            (!conditions.health || conditions.health <= health) &&
+            (!conditions.attack || conditions.attack <= attack) &&
+            (!conditions.defense || conditions.defense <= defense) &&
+            (!conditions.dodge || conditions.dodge <= Number(dodge.toFixed(2))) &&
+            (!conditions.critical || conditions.critical <= Number(critical.toFixed(2)))
           )
         }
         // 完成成就
@@ -490,13 +494,13 @@
     captureRate = Math.floor(Math.max(0, Math.min(100, captureRate)))
     return captureRate
   }
-  const getRandomInt = (min, max) => {
+  const getRandomInt = (min: number, max: number) => {
     min = Math.ceil(min)
     max = Math.floor(max)
     return Math.floor(Math.random() * (max - min + 1)) + min
   }
 
-  const getRandomFloatInRange = (min, max) => {
+  const getRandomFloatInRange = (min: number, max: number) => {
     return Math.random() * (max - min) + min
   }
 

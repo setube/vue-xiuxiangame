@@ -1,31 +1,31 @@
 <template>
   <div class="attributes">
     <div class="attribute-box">
-      <div class="tag attribute">气血: {{ formatNumberToChineseUnit(strengthenInfo.health) }}</div>
-      <div class="tag attribute">攻击: {{ formatNumberToChineseUnit(strengthenInfo.attack) }}</div>
-      <div class="tag attribute">防御: {{ formatNumberToChineseUnit(strengthenInfo.defense) }}</div>
+      <div class="tag attribute">气血: {{ formatNumberToChineseUnit(strengthenInfo.health ?? 0) }}</div>
+      <div class="tag attribute">攻击: {{ formatNumberToChineseUnit(strengthenInfo.attack ?? 0) }}</div>
+      <div class="tag attribute">防御: {{ formatNumberToChineseUnit(strengthenInfo.defense ?? 0) }}</div>
       <div class="tag attribute">
         暴击率:
         {{
-          strengthenInfo?.critical > 0
-            ? strengthenInfo?.critical * 100 > 100
+          (strengthenInfo.critical ?? 0) > 0
+            ? (strengthenInfo.critical ?? 0) * 100 > 100
               ? 100
-              : (strengthenInfo?.critical * 100).toFixed(2)
+              : ((strengthenInfo.critical ?? 0) * 100).toFixed(2)
             : 0
         }}%
       </div>
       <div class="tag attribute">
         闪避率:
         {{
-          strengthenInfo.dodge > 0
-            ? strengthenInfo.dodge * 100 > 100
+          (strengthenInfo.dodge ?? 0) > 0
+            ? (strengthenInfo.dodge ?? 0) * 100 > 100
               ? 100
-              : (strengthenInfo.dodge * 100).toFixed(2)
+              : ((strengthenInfo.dodge ?? 0) * 100).toFixed(2)
             : 0
         }}%
       </div>
       <div class="tag attribute">炼器等级: {{ strengthenInfo.strengthen ?? 0 }}</div>
-      <div class="tag attribute">装备评分: {{ formatNumberToChineseUnit(strengthenInfo.score) }}</div>
+      <div class="tag attribute">装备评分: {{ formatNumberToChineseUnit(strengthenInfo.score ?? 0) }}</div>
       <div
         class="tag attribute"
         @click="
@@ -48,9 +48,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { formatNumberToChineseUnit, gameNotifys } from '@/plugins/game'
-  import { defineProps, defineOptions } from 'vue'
+  import type { EquipmentSlot, Player } from '@/types/game'
 
   // 定义组件名称
   defineOptions({
@@ -58,12 +58,12 @@
   })
 
   // 定义props
-  defineProps({
-    calculateCost: {},
-    calculateEnhanceSuccessRate: {},
-    player: {},
-    strengthenInfo: {}
-  })
+  defineProps<{
+    calculateCost?: number
+    calculateEnhanceSuccessRate?: number
+    player: Player
+    strengthenInfo: EquipmentSlot
+  }>()
 </script>
 <style scoped>
   .attribute {

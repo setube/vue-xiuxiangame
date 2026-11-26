@@ -30,9 +30,13 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { useMainStore } from '@/plugins/store'
-  import { ref, computed, watch, onMounted, defineEmits } from 'vue'
+  import { ref, computed, watch, onMounted } from 'vue'
+  import { invariant } from '@/utils/assert'
+  import type { CooldownUpdate, GameResult } from './types'
+
+  type Choice = '石头' | '剪刀' | '布'
 
   const store = useMainStore()
   const type = {
@@ -40,12 +44,15 @@
     剪刀: 'scissors',
     石头: 'fist'
   }
-  const result = ref(null)
-  const options = ref(['石头', '剪刀', '布'])
+  const result = ref<{ message: string; playerChoice: Choice; computerChoice: Choice } | null>(null)
+  const options = ref<Choice[]>(['石头', '剪刀', '布'])
   const betAmount = ref(100)
   const canPlay = ref(false)
   const player = ref(store.player)
-  const emit = defineEmits(['game-result', 'update-next-game-time'])
+  const emit = defineEmits<{
+    'game-result': [result: GameResult]
+    'update-next-game-time': [update: CooldownUpdate]
+  }>()
 
   const nextGameTime = computed(() => {
     return player.value.nextGameTimes?.rps || 0
@@ -59,8 +66,12 @@
     canPlay.value = Date.now() >= nextGameTime.value && hasEnoughMoney.value
   }
 
-  const play = playerChoice => {
-    if (!canPlay.value) return
+  const play = (playerChoice: Choice) => {
+    invariant(Number.isFinite(betAmount.value) && betAmount.value >= 100, '下注金额必须是不小于100的有限数值')
+    if (!canPlay.value || !hasEnoughMoney.value) {
+      updateCanPlay()
+      return
+    }
     const computerChoice = options.value[Math.floor(Math.random() * 3)]
     const won =
       (playerChoice === '石头' && computerChoice === '剪刀') ||

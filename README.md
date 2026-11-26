@@ -24,6 +24,36 @@ Docker 贡献者：
 
 ## 快速开始
 
+本项目使用 Bun 1.4.5 和 TypeScript。安装 Bun 后执行：
+
+```sh
+bun install --frozen-lockfile
+bun run dev
+```
+
+常用命令：
+
+```sh
+bun run check       # 项目文件断言、严格类型检查及全部测试
+bun run build       # 生产构建，输出到 dist/
+bun run preview     # 本地预览，端口 8080
+```
+
+所有业务脚本、Vue 组件脚本、构建配置和测试均使用 TypeScript，类型定义见 `src/types/game.ts`。`src/utils/assert.ts` 提供存档、装备、战斗及数字等运行时断言；无效导入会在写入本地存储前被拒绝。旧版 AES 存档仍受支持，应用版本与存档格式版本独立。
+
+如果启动时提示“本地存档校验失败”，原始存档会原位保留在浏览器的 `localStorage.vuex`，自动保存已暂停，页面内的新进度不会保存。请先用“导出存档”保留原始文件，再通过“导入存档”选择有效备份；导入成功会刷新页面，校验通过后自动保存恢复。无效备份会被拒绝，并保留现有存档。
+
+TypeScript 暂用最新兼容的 6.0.3：当前 `vue-tsc` 3.3.14 依赖其 JavaScript 编译器 API，与 TypeScript 7 的原生编译器接口不兼容。请使用已提交的 `bun.lock` 安装依赖。
+
+Docker 使用 Bun 构建并执行检查，Nginx 提供静态页面：
+
+```sh
+docker build -t vue-xiuxiangame .
+docker run --rm -p 8080:8080 vue-xiuxiangame
+```
+
+线上 GitHub Pages 从 `main` 分支的 `docs/` 发布；发布版本前需同步生产构建产物。
+
 - [本地安装指南](https://github.com/setube/vue-xiuxiangame/wiki/%E6%9C%AC%E5%9C%B0%E5%AE%89%E8%A3%85%E6%8C%87%E5%8D%97)
 - [Docker 部署指南](https://github.com/setube/vue-xiuxiangame/wiki/Docker%E9%83%A8%E7%BD%B2%E6%8C%87%E5%8D%97)
 

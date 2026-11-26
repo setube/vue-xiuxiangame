@@ -38,8 +38,7 @@
   </div>
 </template>
 
-<script setup>
-  import tag from '@/components/tag.vue'
+<script setup lang="ts">
   import Toe from './toe.vue'
   import CheckIn from './checkin.vue'
   import DiceGame from './Dicegame.vue'
@@ -50,12 +49,14 @@
   import { ref, computed, watch, onMounted } from 'vue'
   import { useMainStore } from '@/plugins/store'
   import { formatNumberToChineseUnit } from '@/plugins/game'
+  import { invariant, assertFiniteNumber, assertRecord } from '@/utils/assert'
+  import type { GameResult } from '@/types/game'
 
   const store = useMainStore()
   const router = useRouter()
   const tabs = ref('checkin')
   const player = ref(store.player)
-  const selectedGame = ref(null)
+  const selectedGame = ref<string | null>(null)
 
   const attributeList = computed(() => {
     return [
@@ -66,31 +67,31 @@
     ]
   })
 
-  const processGameResult = result => {
-    if (result.success) updatePlayerWins(result)
-    else updatePlayerLosses(result)
-  }
-
-  const updatePlayerWins = result => {
-    player.value.gameWins++
+  function assertGameResult(result: unknown): asserts result is GameResult {
+    assertRecord(result, '游戏结果')
+    invariant(typeof result.success === 'boolean', '游戏结果必须包含胜负状态')
     const reward = result.reward
-    if (reward) {
-      if (typeof reward === 'object') {
-        Object.entries(reward).forEach(([key, value]) => {
-          player.value.props[key] += value
-        })
-      } else {
-        player.value.props.money += reward
+    if (typeof reward === 'number') {
+      assertFiniteNumber(reward, '游戏奖励')
+    } else {
+      assertRecord(reward, '游戏奖励')
+      for (const [key, value] of Object.entries(reward)) {
+        invariant(Object.hasOwn(player.value.props, key), '未知的游戏奖励道具')
+        assertFiniteNumber(value, `游戏奖励.${key}`)
       }
     }
+    if (!result.success) assertFiniteNumber(reward, '游戏扣除灵石')
   }
-  const updatePlayerLosses = result => {
-    player.value.props.money -= result.reward
-    player.value.gameLosses++
+
+  const processGameResult = (result: unknown) => {
+    assertGameResult(result)
+    // Child games settle their own rewards; this event only updates statistics.
+    if (result.success) player.value.gameWins++
+    else player.value.gameLosses++
   }
   const checkDailyReset = () => {
     const now = new Date()
-    const lastCheckinDate = new Date(player.value.lastCheckinDate)
+    const lastCheckinDate = new Date(player.value.lastCheckinDate ?? 0)
     if (now.toDateString() !== lastCheckinDate.toDateString()) player.value.checkedInToday = false
   }
 

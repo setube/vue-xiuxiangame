@@ -2,34 +2,43 @@
   <div class="dice-game">
     <div class="options">
       <el-radio-group v-model="betType">
-        <el-radio value="big" :disabled="!canBet" label="大" />
-        <el-radio value="small" :disabled="!canBet" label="小" />
-        <el-radio value="odd" :disabled="!canBet" label="单" />
-        <el-radio value="even" :disabled="!canBet" label="双" />
+        <el-radio value="big" :disabled="!canBet || isRolling" label="大" />
+        <el-radio value="small" :disabled="!canBet || isRolling" label="小" />
+        <el-radio value="odd" :disabled="!canBet || isRolling" label="单" />
+        <el-radio value="even" :disabled="!canBet || isRolling" label="双" />
       </el-radio-group>
     </div>
-    <el-input-number class="bet-amount" v-model="betAmount" :min="100" :step="100" :max="1000000" :disabled="!canBet" />
-    <el-button @click="placeBet" :disabled="!canBet" v-if="canBet">下注灵石</el-button>
+    <el-input-number class="bet-amount" v-model="betAmount" :min="100" :step="100" :max="1000000" :disabled="!canBet || isRolling" />
+    <el-button @click="placeBet" :disabled="!canBet || isRolling" v-if="canBet">下注灵石</el-button>
     <el-countdown :title="hasEnoughMoney ? '冷却中' : '灵石不足'" :value="nextGameTime" @finish="updateCanBet" v-else />
     <div :class="['dice', 'dice-' + diceNumber, { rolling: isRolling }]" />
   </div>
 </template>
 
-<script setup>
-  import { ref, watch, computed, defineEmits, onMounted } from 'vue'
+<script setup lang="ts">
+  import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
   import { useMainStore } from '@/plugins/store'
   import { gameNotifys } from '@/plugins/game'
+  import { invariant } from '@/utils/assert'
+  import type { CooldownUpdate, GameResult } from './types'
+
+  type BetType = 'big' | 'small' | 'odd' | 'even'
 
   const store = useMainStore()
 
   const player = ref(store.player)
   const canBet = ref(false)
-  const betType = ref('big')
+  const betType = ref<BetType>('big')
   const betAmount = ref(100)
   const isRolling = ref(false)
   const diceNumber = ref(1)
 
-  const emit = defineEmits(['game-result', 'update-next-game-time'])
+  const emit = defineEmits<{
+    'game-result': [result: GameResult]
+    'update-next-game-time': [update: CooldownUpdate]
+  }>()
+  let rollInterval: ReturnType<typeof setInterval> | undefined
+  let reservedBet: number | undefined
 
   const hasEnoughMoney = computed(() => {
     return player.value.props.money >= betAmount.value
@@ -44,26 +53,33 @@
   }
 
   const placeBet = () => {
+    invariant(Number.isFinite(betAmount.value) && betAmount.value >= 100, '下注金额必须是不小于100的有限数值')
+    if (isRolling.value) return
     if (!canBet.value || !hasEnoughMoney.value) {
       gameNotifys({ title: '无法下注', message: '灵石不足或正在冷却中' })
       return
     }
+    const wager = betAmount.value
+    const wagerType = betType.value
+    player.value.props.money -= wager
+    reservedBet = wager
     isRolling.value = true
     let rollCount = 0
-    const rollInterval = setInterval(() => {
+    rollInterval = setInterval(() => {
       diceNumber.value = Math.floor(Math.random() * 6) + 1
       rollCount++
       if (rollCount >= 20) {
         clearInterval(rollInterval)
-        finishRoll()
+        rollInterval = undefined
+        finishRoll(wager, wagerType)
       }
     }, 100)
   }
 
-  const finishRoll = () => {
+  const finishRoll = (wager: number, wagerType: BetType) => {
     const dice = diceNumber.value
     let won = false
-    switch (betType.value) {
+    switch (wagerType) {
       case 'big':
         won = dice > 3
         break
@@ -77,13 +93,10 @@
         won = dice % 2 === 0
         break
     }
-    const reward = won ? betAmount.value * 2 : 0
+    const reward = won ? wager * 2 : 0
     canBet.value = false
-    if (won) {
-      player.value.props.money += reward - betAmount.value
-    } else {
-      player.value.props.money -= betAmount.value
-    }
+    reservedBet = undefined
+    player.value.props.money += reward
     gameNotifys({ title: `骰子点数: ${dice}`, message: won ? `恭喜您赢得了${reward}灵石！` : '很遗憾，您输了。' })
     emit('game-result', { success: won, reward })
     const newNextGameTime = Date.now() + 10 * 60 * 1000
@@ -97,6 +110,12 @@
 
   onMounted(() => {
     updateCanBet()
+  })
+
+  onUnmounted(() => {
+    clearInterval(rollInterval)
+    if (reservedBet !== undefined) player.value.props.money += reservedBet
+    reservedBet = undefined
   })
 </script>
 

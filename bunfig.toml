@@ -1,0 +1,6 @@
+[install]
+exact = false
+registry = "https://registry.npmjs.org"
+
+[test]
+root = "./tests"

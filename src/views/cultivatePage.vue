@@ -7,7 +7,7 @@
       </div>
       <el-progress
         :percentage="cultivationPercentage"
-        :format="percentage => `${percentage.toFixed(2)}%`"
+        :format="(percentage: number) => `${percentage.toFixed(2)}%`"
         text-inside
         :stroke-width="20"
         status="success"
@@ -29,7 +29,8 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+  import type { ScrollbarInstance } from 'element-plus'
   import { useRouter } from 'vue-router'
   import { ref, computed, onUnmounted, onMounted } from 'vue'
   import { useMainStore } from '@/plugins/store'
@@ -39,13 +40,13 @@
 
   const store = useMainStore()
   const router = useRouter()
-  const texts = ref([])
+  const texts = ref<string[]>([])
   const player = ref(store.player)
   const isStop = ref(false)
   const isStart = ref(false)
-  const timerIds = ref([])
-  const observer = ref(null)
-  const scrollbar = ref(null)
+  const timerIds = ref<ReturnType<typeof setInterval>[]>([])
+  const observer = ref<MutationObserver | null>(null)
+  const scrollbar = ref<ScrollbarInstance | null>(null)
   const buttonsFor = computed(() => {
     return [
       { text: '开始修炼', click: () => startCultivate(), disabled: !isStart.value },
@@ -94,7 +95,7 @@
       { type: 'item', name: '丹药', effect: '增加100点修为', description: '你获得了一颗珍贵的丹药！' },
       { type: 'skill', name: '剑法', effect: '增加10%攻击力', description: '你领悟了一门高深剑法！' },
       { type: 'lucky', name: '雷劫', effect: '修为降低10%', description: '你遭遇了雷劫！' }
-    ]
+    ] as const
     const event = randomEvents[Math.floor(Math.random() * randomEvents.length)]
     texts.value.push(`<span style="color: #E6A23C">${event.description}</span>`)
     switch (event.type) {
@@ -128,7 +129,7 @@
     isStop.value = false
   }
 
-  const breakThrough = exp => {
+  const breakThrough = (exp: number) => {
     const reincarnation = player.value.reincarnation ? player.value.reincarnation + 1 : 1
     if (player.value.level < maxLv) {
       if (player.value.cultivation >= player.value.maxCultivation) {
