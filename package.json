@@ -38,7 +38,7 @@
         "esbuild": "^0.28.2",
         "javascript-obfuscator": "^5.10.1",
         "terser": "^5.51.4",
-        "typescript": "~6.0.3",
+        "typescript": "~7.0.2",
         "unplugin-auto-import": "^21.1.0",
         "unplugin-icons": "^24.0.0",
         "unplugin-vue-components": "^32.1.0",
