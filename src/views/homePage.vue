@@ -1806,7 +1806,7 @@
           })
         }
         // 扣除炼器石
-        player.value.props.strengtheningStone -= calculate
+        player.value.props.strengtheningStone -= calculateCost
       })
       .catch(() => {})
   }
@@ -2349,10 +2349,8 @@
     if (!equipment) return
     // 需要炼器的装备信息
     strengthenInfo.value = equipment
-    // 炼器等级
-    if (player.value.equipment[type] && !player.value.equipment[type].hasOwnProperty('strengthen')) {
-      player.value.equipment[type].strengthen = equipment?.strengthen ? equipment?.strengthen : 0
-    }
+    // 只初始化当前查看装备的炼器等级，避免修改同类型的已穿戴装备
+    equipment.strengthen ??= 0
   }
 
   // 装备信息

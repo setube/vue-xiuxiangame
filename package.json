@@ -5,6 +5,7 @@
     "type": "module",
     "scripts": {
         "dev": "vite --open",
+        "test": "node --test tests/*.test.js",
         "build": "vite build",
         "preview": "vite preview --port 8080"
     },
