@@ -1,5 +1,5 @@
 # 构建阶段
-FROM oven/bun:1.4.5 AS build
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.5 AS build
 WORKDIR /app
 COPY package.json bun.lock bunfig.toml ./
 RUN bun install --frozen-lockfile
