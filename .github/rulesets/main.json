@@ -2,7 +2,9 @@
   "name": "主分支保护",
   "target": "branch",
   "enforcement": "active",
-  "bypass_actors": [],
+  "bypass_actors": [
+    { "actor_id": 73606411, "actor_type": "User", "bypass_mode": "always" }
+  ],
   "conditions": {
     "ref_name": {
       "include": ["~DEFAULT_BRANCH"],

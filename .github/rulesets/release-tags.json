@@ -2,7 +2,9 @@
   "name": "发布标签保护",
   "target": "tag",
   "enforcement": "active",
-  "bypass_actors": [],
+  "bypass_actors": [
+    { "actor_id": 73606411, "actor_type": "User", "bypass_mode": "always" }
+  ],
   "conditions": {
     "ref_name": {
       "include": ["~ALL"],
