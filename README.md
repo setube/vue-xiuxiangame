@@ -61,6 +61,12 @@ GitHub Pages 的发布来源应设为 **GitHub Actions**。自定义域名在仓
 - [本地安装指南](https://github.com/setube/vue-xiuxiangame/wiki/%E6%9C%AC%E5%9C%B0%E5%AE%89%E8%A3%85%E6%8C%87%E5%8D%97)
 - [Docker 部署指南](https://github.com/setube/vue-xiuxiangame/wiki/Docker%E9%83%A8%E7%BD%B2%E6%8C%87%E5%8D%97)
 
+## 参与贡献与安全
+
+- [贡献指南](CONTRIBUTING.md)：开发验证、测试、存档兼容性与拉取请求要求。提交消息和拉取请求标题采用 `类型: 中文说明`。
+- [行为准则](CODE_OF_CONDUCT.md)：社区参与规范、问题报告与处理原则。
+- [安全政策](SECURITY.md)：受支持版本、安全边界与私密漏洞报告渠道。发现漏洞请通过私密报告入口联系维护者。
+
 ## 版权声明
 
 知识共享署名-非商业性使用 4.0 国际许可协议

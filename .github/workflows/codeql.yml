@@ -1,0 +1,49 @@
+name: 代码安全扫描
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: "17 1 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: 代码扫描（${{ matrix.language }}）
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language:
+          - javascript-typescript
+          - actions
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: 初始化高级安全分析
+        uses: github/codeql-action/init@bf58c2ac1f8060aa73f1225f461c80391348076a # v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-extended
+      - name: 分析代码并上传安全结果
+        uses: github/codeql-action/analyze@bf58c2ac1f8060aa73f1225f461c80391348076a # v4
+        with:
+          category: /language:${{ matrix.language }}

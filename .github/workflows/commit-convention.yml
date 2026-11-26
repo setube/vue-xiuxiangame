@@ -1,0 +1,44 @@
+name: 中文提交规范
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  commit-convention:
+    name: 中文提交格式检查
+    runs-on: ubuntu-latest
+    steps:
+      - name: 校验拉取请求标题与新增提交
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          script: |
+            const pull = context.payload.pull_request;
+            const pattern = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert): \S.*$/u;
+            const isValid = (subject) =>
+              pattern.test(subject) && /\p{Script=Han}/u.test(subject.slice(subject.indexOf(': ') + 2));
+            const errors = [];
+            if (!isValid(pull.title)) {
+              errors.push('拉取请求标题须使用「类型: 中文说明」，例如「fix: 保留装备炼器等级」。');
+            }
+            const commits = await github.paginate(github.rest.pulls.listCommits, {
+              ...context.repo,
+              pull_number: pull.number,
+              per_page: 100,
+            });
+            for (const commit of commits) {
+              const subject = commit.commit.message.split(/\r?\n/, 1)[0];
+              if (!isValid(subject)) {
+                errors.push(`提交 ${commit.sha.slice(0, 7)} 须使用「类型: 中文说明」。`);
+              }
+            }
+            if (errors.length > 0) {
+              core.setFailed(errors.join('\n'));
+            } else {
+              core.info(`拉取请求标题和 ${commits.length} 个新增提交均符合中文提交规范。`);
+            }
