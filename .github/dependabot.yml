@@ -10,6 +10,11 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "build: 升级项目依赖"
+    ignore:
+      # vue-tsc 尚不兼容 TypeScript 7，保留 TypeScript 6 的正常更新。
+      - dependency-name: typescript
+        versions:
+          - "7.x"
     groups:
       # 主版本升级单独审查，合并低风险的次版本和修订版本更新。
       compatible-dependencies:
@@ -27,7 +32,15 @@ updates:
     commit-message:
       prefix: "ci: 更新工作流依赖"
     groups:
+      # 固定 SHA 的 CodeQL 初始化与分析步骤必须同步升级。
+      codeql-actions:
+        patterns:
+          - "github/codeql-action"
+          - "github/codeql-action/*"
       compatible-actions:
+        exclude-patterns:
+          - "github/codeql-action"
+          - "github/codeql-action/*"
         update-types:
           - minor
           - patch
