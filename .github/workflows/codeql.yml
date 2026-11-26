@@ -38,7 +38,7 @@ jobs:
         with:
           persist-credentials: false
       - name: 初始化高级安全分析
-        uses: github/codeql-action/init@bf58c2ac1f8060aa73f1225f461c80391348076a # v4
+        uses: github/codeql-action/init@915412ff23e8b7659517e607487dbeae018f2934 # v4
         with:
           languages: ${{ matrix.language }}
           build-mode: none
