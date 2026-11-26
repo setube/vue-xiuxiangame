@@ -52,6 +52,8 @@ docker build -t vue-xiuxiangame .
 docker run --rm -p 8080:8080 vue-xiuxiangame
 ```
 
+工作流使用仓库内置的 `GITHUB_TOKEN` 发布镜像，无需维护个人令牌。已有 GHCR 包需在包设置的 **Manage Actions access** 中授予本仓库 **Write** 权限。
+
 推送到 `main` 后，GitHub Actions 会自动执行检查、构建并将 `dist/` 部署到 GitHub Pages；拉取请求仅运行检查与构建。也可在 Actions 中手动运行部署工作流。仓库不再提交 `docs/` 构建产物。
 
 GitHub Pages 的发布来源应设为 **GitHub Actions**。自定义域名在仓库 **Settings → Pages → Custom domain** 中管理，无需在 `public/` 或构建产物中生成 `CNAME` 文件。
